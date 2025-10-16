@@ -10,6 +10,14 @@ type Router struct {
 	commands map[string]handler
 }
 
+type WeatherProvider interface {
+	GetWeatherByCoordinates(lat, lon float64) (WeatherData, error)
+}
+
+type WeatherData struct {
+	// todo
+}
+
 type handler func(update tgbotapi.Update) string
 
 func MakeRouter() *Router {
