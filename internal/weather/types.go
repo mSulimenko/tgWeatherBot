@@ -1,0 +1,15 @@
+package weather
+
+type Response struct {
+	Weather []struct {
+		Description string `json:"description"`
+	} `json:"weather"`
+	Main struct {
+		Temp      float64 `json:"temp"`
+		FeelsLike float64 `json:"feels_like"`
+	} `json:"main"`
+	Wind struct {
+		Speed float64 `json:"speed"`
+	} `json:"wind"`
+	Name string `json:"name"`
+}

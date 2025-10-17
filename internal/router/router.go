@@ -1,26 +1,31 @@
 package router
 
-import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-
-const (
-	messageUnknownCommand = "Sorry, i don`t know this command"
+import (
+	"fmt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"strconv"
+	"strings"
 )
 
-type Router struct {
-	commands map[string]handler
+func (wd WeatherData) String() string {
+	return fmt.Sprintf("В %s сейчас %s\nТемпература: %d°C (ощущается как %d°C)\nВетер: %d м/с",
+		wd.Name, wd.Type, wd.Temp, wd.FeelsLike, wd.WindSpeed)
 }
 
 type handler func(update tgbotapi.Update) string
 
-func MakeRouter() *Router {
+func MakeRouter(weatherProvider WeatherProvider) *Router {
+	r := &Router{
+		weatherProvider: weatherProvider,
+	}
 	commands := map[string]handler{
-		"help":    commandHelpHandler,
-		"weather": commandWeatherHandler,
+		"help":    r.commandHelpHandler,
+		"weather": r.commandWeatherHandler,
 	}
 
-	return &Router{
-		commands: commands,
-	}
+	r.commands = commands
+
+	return r
 }
 
 func (r *Router) Handle(update tgbotapi.Update) tgbotapi.MessageConfig {
@@ -28,7 +33,7 @@ func (r *Router) Handle(update tgbotapi.Update) tgbotapi.MessageConfig {
 	if !ok {
 		return tgbotapi.NewMessage(
 			update.Message.Chat.ID,
-			messageUnknownCommand,
+			messageUnknownCommand+"\n"+helpString,
 		)
 	}
 
@@ -40,10 +45,47 @@ func (r *Router) Handle(update tgbotapi.Update) tgbotapi.MessageConfig {
 	)
 }
 
-func commandHelpHandler(update tgbotapi.Update) string {
-	return "helpHandler not done"
+func (r *Router) commandHelpHandler(update tgbotapi.Update) string {
+	return helpString
 }
 
-func commandWeatherHandler(update tgbotapi.Update) string {
-	return "commandWeatherHandler not done"
+func (r *Router) commandWeatherHandler(update tgbotapi.Update) string {
+	req := strings.Fields(update.Message.Text)
+	if len(req) != 3 {
+		return messageBadRequest
+	}
+	lat, lon := req[1], req[2]
+
+	if !validateLat(lat) || !validateLon(lon) {
+		return messageBadCoords
+	}
+
+	weatherData, err := r.weatherProvider.GetWeatherByCoordinates(lat, lon)
+	if err != nil {
+		return messageInternalError
+	}
+
+	return weatherData.String()
+}
+
+func validateLat(lat string) bool {
+	f, err := strconv.ParseFloat(lat, 64)
+	if err != nil {
+		return false
+	}
+	if f < -90 || f > 90 {
+		return false
+	}
+	return true
+}
+
+func validateLon(lon string) bool {
+	f, err := strconv.ParseFloat(lon, 64)
+	if err != nil {
+		return false
+	}
+	if f < -180 || f > 180 {
+		return false
+	}
+	return true
 }
