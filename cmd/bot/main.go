@@ -4,6 +4,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"tgWeatherBot/internal/config"
 	rt "tgWeatherBot/internal/router"
+	"tgWeatherBot/internal/weather"
 )
 
 const (
@@ -19,7 +20,8 @@ func main() {
 		panic(err)
 	}
 
-	router := rt.MakeRouter()
+	weatherClient := weather.MakeClient(cfg.WeatherAPIKey)
+	router := rt.MakeRouter(weatherClient)
 
 	bot.Debug = false
 	updateConfig := tgbotapi.NewUpdate(0)

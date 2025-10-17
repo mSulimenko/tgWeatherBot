@@ -3,8 +3,10 @@ package weather
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
+	"tgWeatherBot/internal/router"
 )
 
 const (
@@ -20,31 +22,45 @@ type Client struct {
 	apiKey string
 }
 
-func (c *Client) getWeatherByCoordinates(latitude, longitude float64) error {
+func MakeClient(apiKey string) *Client {
+	return &Client{apiKey: apiKey}
+}
+
+func (c *Client) GetWeatherByCoordinates(lat, lon string) (router.WeatherData, error) {
 	params := url.Values{}
-	params.Add("lat", fmt.Sprintf("%f", latitude))
-	params.Add("lon", fmt.Sprintf("%f", longitude))
+	params.Add("lat", lat)
+	params.Add("lon", lon)
 	params.Add("appid", c.apiKey)
 	params.Add("units", unitsType)
 	params.Add("lang", languageCode)
 
-	fullUrl := baseUrl + "?" + params.Encode()
-
+	fullUrl := baseUrl + params.Encode()
 	resp, err := http.Get(fullUrl)
 	if err != nil {
-		return err
+		return router.WeatherData{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("weather API error: %s", resp.Status)
+		return router.WeatherData{},
+			fmt.Errorf("weather API error: %s", resp.Status)
 	}
-	fmt.Println(resp)
 	var response Response
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return err
+	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return router.WeatherData{}, err
 	}
-	fmt.Println(response)
-	return nil
+
+	weatherData := convertResponseWeatherToWeatherData(response)
+	return weatherData, nil
+}
+
+func convertResponseWeatherToWeatherData(r Response) router.WeatherData {
+	return router.WeatherData{
+		Type:      r.Weather[0].Description,
+		Temp:      int(math.Round(r.Main.Temp)),
+		FeelsLike: int(math.Round(r.Main.FeelsLike)),
+		WindSpeed: int(math.Round(r.Main.FeelsLike)),
+		Name:      r.Name,
+	}
 }
